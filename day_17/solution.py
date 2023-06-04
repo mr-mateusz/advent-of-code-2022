@@ -1,17 +1,26 @@
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
-from typing import List
+from typing import List, NamedTuple
 
 import numpy as np
 
 
-# Todo - make coord immutable
-@dataclass
-class Coord:
+class Coord(NamedTuple):
     x: int
     y: int
+
+    def move(self, x: int, y: int) -> Coord:
+        return Coord(self.x + x, self.y + y)
+
+    def move_left(self) -> Coord:
+        return self.move(-1, 0)
+
+    def move_right(self) -> Coord:
+        return self.move(1, 0)
+
+    def move_down(self) -> Coord:
+        return self.move(0, -1)
 
 
 rock_types = [
@@ -40,26 +49,24 @@ class Rock:
 
     def can_move_left(self, chamber: Chamber) -> bool:
         for coord in self.coords:
-            if not chamber.is_coord_available(Coord(coord.x - 1, coord.y)):
+            if not chamber.is_coord_available(coord.move_left()):
                 return False
         return True
 
     def can_move_right(self, chamber: Chamber) -> bool:
         for coord in self.coords:
-            if not chamber.is_coord_available(Coord(coord.x + 1, coord.y)):
+            if not chamber.is_coord_available(coord.move_right()):
                 return False
         return True
 
     def can_move_down(self, chamber: Chamber) -> bool:
         for coord in self.coords:
-            if not chamber.is_coord_available(Coord(coord.x, coord.y - 1)):
+            if not chamber.is_coord_available(coord.move_down()):
                 return False
         return True
 
     def __move(self, x: int, y: int) -> None:
-        for coord in self.coords:
-            coord.x += x
-            coord.y += y
+        self.coords = [coord.move(x, y) for coord in self.coords]
 
     def move_left(self) -> None:
         self.__move(-1, 0)
@@ -78,8 +85,7 @@ class Chamber:
         self.width = width
         self.bottom = bottom
 
-        # todo change Coord from dataclass to namedtuple and change the list below to set
-        self.coords_taken = []
+        self.coords_taken = set()
 
         self.rock_type_iter = itertools.cycle(range(rock_types_count))
         self.jet_iter = itertools.cycle(jet_pattern)
@@ -123,7 +129,7 @@ class Chamber:
                     rock.move_down()
                 else:
                     rock_landed = True
-                    self.coords_taken.extend(rock.coords)
+                    self.coords_taken.update(rock.coords)
 
     def print(self):
         # fixme
@@ -133,7 +139,6 @@ class Chamber:
 
         arr = np.flip(arr, 0)[:-1, :]
         print(arr)
-
 
 
 if __name__ == '__main__':
