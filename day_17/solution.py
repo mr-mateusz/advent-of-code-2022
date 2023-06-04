@@ -4,6 +4,7 @@ import itertools
 from typing import List, NamedTuple
 
 import numpy as np
+from tqdm import tqdm
 
 
 class Coord(NamedTuple):
@@ -95,7 +96,7 @@ class Chamber:
             return False
         if coord.x < 0:
             return False
-        if coord.x > self.width:
+        if coord.x >= self.width:
             return False
         if coord.y <= self.bottom:
             return False
@@ -107,13 +108,13 @@ class Chamber:
 
     def simulate(self, num_rocks: int) -> None:
         # todo
-        for _ in range(num_rocks):
+        for _ in tqdm(range(num_rocks)):
             rock_type = next(self.rock_type_iter)
             rock = Rock.create(2, self.tower_height + 4, rock_type)
             rock_landed = False
 
             while not rock_landed:
-                self.print()
+                # self.print()
                 # Push by jet
                 jet_direction = next(self.jet_iter)
 
@@ -142,9 +143,9 @@ class Chamber:
 
 
 if __name__ == '__main__':
-    path = './input2.txt'
+    path = './input.txt'
 
-    rocks_to_fall = 2
+    rocks_to_fall = 2022
 
     with open(path, 'r', encoding='utf-8') as f:
         jet_pattern = f.read().strip()
@@ -153,8 +154,8 @@ if __name__ == '__main__':
 
     chamber.simulate(rocks_to_fall)
 
-    print(max([coord.y for coord in chamber.coords_taken]))
+    print(chamber.tower_height)
 
-    print(chamber.coords_taken)
+    # print(chamber.coords_taken)
 
     chamber.print()
