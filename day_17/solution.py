@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+from collections.abc import Sequence
 from typing import List, NamedTuple
 
 import numpy as np
@@ -80,8 +81,6 @@ class Rock:
 
 
 class Chamber:
-
-    # todo - rock types instead of count
     def __init__(self, width: int, bottom: int, rock_types_count: int, jet_pattern: str) -> None:
         self.width = width
         self.bottom = bottom
@@ -90,6 +89,8 @@ class Chamber:
 
         self.rock_type_iter = itertools.cycle(range(rock_types_count))
         self.jet_iter = itertools.cycle(jet_pattern)
+
+        self.height_history = [self.tower_height]
 
     def is_coord_available(self, coord: Coord) -> bool:
         if coord in self.coords_taken:
@@ -107,7 +108,6 @@ class Chamber:
         return max([coord.y for coord in self.coords_taken], default=self.bottom)
 
     def simulate(self, num_rocks: int) -> None:
-        # todo
         for _ in tqdm(range(num_rocks)):
             rock_type = next(self.rock_type_iter)
             rock = Rock.create(2, self.tower_height + 4, rock_type)
@@ -118,7 +118,7 @@ class Chamber:
                 # Push by jet
                 jet_direction = next(self.jet_iter)
 
-                if jet_direction == '<':  # todo - enum
+                if jet_direction == '<':
                     if rock.can_move_left(self):
                         rock.move_left()
                 elif jet_direction == '>':
@@ -132,8 +132,9 @@ class Chamber:
                     rock_landed = True
                     self.coords_taken.update(rock.coords)
 
+                    self.height_history.append(self.tower_height)
+
     def print(self):
-        # fixme
         arr = np.ones((self.tower_height + 1, self.width))
         for coord in self.coords_taken:
             arr[coord.y, coord.x] = 0
@@ -142,20 +143,97 @@ class Chamber:
         print(arr)
 
 
+def find_pattern(seq: Sequence) -> tuple[None, None] | tuple[int, int]:
+    for offset in range(len(seq) // 2):
+        max_pattern_len = (len(seq) - offset) // 2
+        for pattern_len in range(1, max_pattern_len):
+            chunk_iter = iter(seq[offset:])
+            first_chunk = list(itertools.islice(chunk_iter, pattern_len))
+
+            # Assume that there is a cycle with given len
+            all_match = True
+
+            while chunk := list(itertools.islice(chunk_iter, pattern_len)):
+                if len(chunk) != len(first_chunk):
+                    # last chunk
+                    break
+                if chunk != first_chunk:
+                    # pattern does not match
+                    all_match = False
+                    break
+
+            if all_match:
+                return offset, pattern_len
+
+    return None, None
+
+
+def calculate_height(rocks_to_fall: int,
+                     offset_height_increase: Sequence[int],
+                     cycle_height_increase: Sequence[int]) -> int:
+    if rocks_to_fall <= len(offset_height_increase):
+        return sum(offset_height_increase[:rocks_to_fall])
+
+    total_height = 0
+    remaining_rocks = rocks_to_fall
+
+    total_height += sum(offset_height_increase)
+    remaining_rocks -= len(offset_height_increase)
+
+    full_cycles = remaining_rocks // len(cycle_height_increase)
+
+    total_height += full_cycles * sum(cycle_height_increase)
+    remaining_rocks -= full_cycles * len(cycle_height_increase)
+
+    total_height += sum(cycle_height_increase[:remaining_rocks])
+
+    return total_height
+
+
 if __name__ == '__main__':
     path = './input.txt'
 
-    rocks_to_fall = 2022
+    # number of rocks for simulation. Pattern search will be performed on the results
+    rocks_for_simulation = 10000
 
     with open(path, 'r', encoding='utf-8') as f:
         jet_pattern = f.read().strip()
 
     chamber = Chamber(7, 0, len(rock_types), jet_pattern)
 
-    chamber.simulate(rocks_to_fall)
+    chamber.simulate(rocks_for_simulation)
 
     print(chamber.tower_height)
 
-    # print(chamber.coords_taken)
+    height_history = chamber.height_history
 
-    chamber.print()
+    height_increase = []
+    for _prev, _next in zip(height_history, height_history[1:]):
+        height_increase.append(_next - _prev)
+
+    offset, cycle_len = find_pattern(height_increase)
+
+    if offset and cycle_len:
+        print(f'Pattern found. {offset=}, {cycle_len=}')
+    else:
+        print('pattern not found')
+        exit()
+
+    # offset height
+    offset_height_increase = height_increase[:offset]
+    # cycle height
+    cycle_height_increase = height_increase[offset: offset + cycle_len]
+
+    # sanity check
+    rocks_to_fall = rocks_for_simulation
+    _height = calculate_height(rocks_to_fall, offset_height_increase, cycle_height_increase)
+    print(_height)
+    assert _height == chamber.tower_height
+
+    # part 1
+    rocks_to_fall = 2022
+    print(calculate_height(rocks_to_fall, offset_height_increase, cycle_height_increase))
+
+    # part 2
+    rocks_to_fall = 1000000000000
+    print(calculate_height(rocks_to_fall, offset_height_increase, cycle_height_increase))
