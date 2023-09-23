@@ -27,6 +27,17 @@ def adjacent_positions(position: tuple[int, int, int]):
         yield position + rel_pos
 
 
+def calculate_surface(lava_bits_positions: set[Coord]) -> int:
+    total_surface = 0
+    for lava_bit_position in lava_bits_positions:
+        exposed_sides = 6
+        for adjacent_position in adjacent_positions(lava_bit_position):
+            if adjacent_position in lava_bits_positions:
+                exposed_sides -= 1
+        total_surface += exposed_sides
+    return total_surface
+
+
 if __name__ == '__main__':
     path = './input.txt'
 
@@ -35,14 +46,7 @@ if __name__ == '__main__':
     data = [[int(pos) for pos in row] for row in data]
     data = [Coord(*row) for row in data]
 
-    droplet_positions = set(data)
+    lava_bits_positions = set(data)
 
-    total_surface = 0
-    for droplet_position in droplet_positions:
-        exposed_sides = 6
-        for adjacent_position in adjacent_positions(droplet_position):
-            if adjacent_position in droplet_positions:
-                exposed_sides -= 1
-        total_surface += exposed_sides
-
-    print(total_surface)
+    # part 1
+    print(calculate_surface(lava_bits_positions))
